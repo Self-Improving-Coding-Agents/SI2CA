@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "si2ca"
+version = "0.2.6"
+description = "SJ, SL and trajectory distillation experiments for (Self-Improving)^2 Coding Agents"
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = ["httpx>=0.27,<1", "PyYAML>=6,<7", "Jinja2>=3.1,<4", "mini-swe-agent==2.4.2", "transformers>=5.6,<6", "huggingface-hub>=1,<2", "aiohttp>=3.10,<4"]
+
+[project.optional-dependencies]
+likelihood = ["transformers>=5.6,<6"]
+self-hosted = ["transformers>=5.6,<6"]
+api = ["aiohttp>=3.10,<4"]
+search = ["swebench"]
+serve = ["sglang[all]==0.5.17"]
+
+[project.scripts]
+si2ca = "si2ca.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Self-Improving-Coding-Agents/SI2CA"
+Documentation = "https://github.com/Self-Improving-Coding-Agents/SI2CA/blob/main/README.md"
+
+[tool.setuptools.packages.find]
+include = ["si2ca*"]
+
+[tool.setuptools.package-data]
+"si2ca.runtime" = ["*.yaml", "*.json"]
+"si2ca.prompts" = ["*.md", "*.json"]
