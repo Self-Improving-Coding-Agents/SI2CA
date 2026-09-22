@@ -1,0 +1,7 @@
+include configs/experiments.yaml
+include data/*.jsonl
+include data/*.csv
+include data/assets.tar.gz
+include skills/*.md
+include scripts/check_english.py
+recursive-include si2ca/prompts *.md *.json

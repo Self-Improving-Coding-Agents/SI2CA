@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use SI2CA in your research, please cite the work below."
+type: software
+title: "(Self-Improving)² Coding Agents"
+authors:
+  - name: "SI2CA Contributors"
+repository-code: "https://github.com/Self-Improving-Coding-Agents/SI2CA"
+url: "https://github.com/Self-Improving-Coding-Agents/SI2CA"
+preferred-citation:
+  type: generic
+  title: "(Self-Improving)² Coding Agents: Curating High-Quality Trajectories via Recursive Self-Improvement"
+  authors:
+    - name: "SI2CA Contributors"
+  year: 2026
+  url: "https://github.com/Self-Improving-Coding-Agents/SI2CA"

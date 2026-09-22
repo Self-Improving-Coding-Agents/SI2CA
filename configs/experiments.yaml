@@ -1,0 +1,50 @@
+# All paths are relative to the repository root. CLI values override these defaults.
+defaults:
+  engine: strategy
+  strategy: selfguide_rubrics
+  benchmark: verified
+  temperature: 1.0
+  top_p: 0.95
+  top_k: 10
+  max_gen_tokens: 4096
+  max_turns: 250
+  task_timeout: 100000000
+  eval_timeout: 3600
+  concurrency: 8
+  seed: 42
+  n_samples: 1
+  k: 2
+  score_samples: 3
+  judge_temperature: 1.0
+  judge_top_p: 0.95
+  judge_max_tokens: 4096
+  judge_thinking: true
+  judge_batch_samples: false
+  judge_mode: local_openai
+  judge_reasoning_effort: medium
+  prefix_head_chars: 1500
+  prefix_tail_chars: 1500
+  prefix_max_chars: 80000
+  gold_max_chars: 100000000
+  keep_reasoning: true
+  rubric_family: false
+  pi: gold
+
+settings:
+  standard: {strategy: baseline, pi: none, k: 1}
+  sj: {}
+  sj_no_pi: {pi: none}
+  sj_strong: {temperature: 0.6, top_k: 20, score_samples: 2, judge_batch_samples: false}
+  sl_gold_head: {engine: strategy, strategy: sl, pi: gold, position: head, k: 4}
+  sl_gold_tail: {engine: strategy, strategy: sl, pi: gold, position: tail, k: 4}
+  sl_hint_head: {engine: strategy, strategy: sl, pi: hint, position: head, k: 4}
+  sl_hint_tail: {engine: strategy, strategy: sl, pi: hint, position: tail, k: 4}
+  sl_gold_head_gain: {engine: strategy, strategy: sl_gain, pi: gold, position: head, k: 4}
+  sl_gold_tail_gain: {engine: strategy, strategy: sl_gain, pi: gold, position: tail, k: 4}
+  sl_hint_head_gain: {engine: strategy, strategy: sl_gain, pi: hint, position: head, k: 4}
+  sl_hint_tail_gain: {engine: strategy, strategy: sl_gain, pi: hint, position: tail, k: 4}
+  discovered: {engine: strategy, strategy: discovered, pi: gold}
+  sft_eval: {engine: strategy, strategy: baseline, pi: none, k: 1}
+  ds_standard: {engine: strategy, strategy: baseline, benchmark: deepswe, pi: none, k: 1, n_samples: 4, max_turns: 1000, max_gen_tokens: 0, task_timeout: 200000, reasoning_effort: xhigh}
+  ds_sj: {engine: strategy, strategy: selfguide_rubrics, benchmark: deepswe, score_samples: 2, n_samples: 4, max_turns: 1000, max_gen_tokens: 0, task_timeout: 200000, reasoning_effort: xhigh, judge_reasoning_effort: xhigh, judge_batch_samples: false, gold_max_chars: 16000}
+  ds_sj_medium: {engine: strategy, strategy: selfguide_rubrics, benchmark: deepswe, score_samples: 2, n_samples: 4, max_turns: 1000, max_gen_tokens: 0, task_timeout: 200000, reasoning_effort: xhigh, judge_reasoning_effort: medium, judge_batch_samples: false, gold_max_chars: 16000}

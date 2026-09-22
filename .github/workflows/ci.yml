@@ -1,0 +1,101 @@
+name: Python checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release-tag:
+        description: Expected release tag, matching v<project.version>
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SI2CA_CACHE_DIR: ${{ github.workspace }}/runs/ci-cache
+      HF_HUB_OFFLINE: '1'
+      LITELLM_LOCAL_MODEL_COST_MAP: 'True'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Check release version
+        if: inputs.release-tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          expected = f'v{version}'
+          if os.environ['RELEASE_TAG'] != expected:
+              raise SystemExit(f'Release tag must be {expected}')
+          PY
+      - name: Install clients and check tools (no GPU serving stack)
+        run: |
+          python -m pip install '.[search]' 'build>=1.2,<2' 'twine>=6,<8' 'pylint>=4,<5'
+          python -m pip check
+      - name: Pylint correctness checks
+        run: python -m pylint --disable=all --enable=syntax-error,undefined-variable,used-before-assignment --reports=n --score=n si2ca tests setup.py
+      - name: Offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Build source distribution and wheel
+        run: |
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Install the built wheel
+        run: python -m pip install --force-reinstall --no-deps dist/*.whl
+      - name: Check installed package outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          si2ca --help
+          si2ca run --help
+          si2ca ls methods
+          si2ca ls skills
+          si2ca data prepare
+          python -I - <<'PY'
+          from pathlib import Path
+          import si2ca
+          from si2ca.data import RESOURCE_ROOT, load_dataset
+          from si2ca.prompts import AGENT_TEMPLATES, MODEL_TEMPLATES, MESSAGES
+          from si2ca.runtime.protocol import HARNESS_PROTOCOL
+          from si2ca.runtime.judging import system_prompt
+          from si2ca.run import parser, resolve
+          assert RESOURCE_ROOT == Path(si2ca.__file__).resolve().parent / 'resources'
+          assert len(load_dataset('pro')) == 731
+          assert len(load_dataset('both')) == 1231
+          assert not (RESOURCE_ROOT / 'data/bench766.jsonl').exists()
+          assert AGENT_TEMPLATES and MODEL_TEMPLATES and MESSAGES
+          cfg = resolve(parser().parse_args(['--setting', 'ds_sj', '--model', 'mock',
+              '--base-url', 'http://127.0.0.1:9999', '--out', 'never-executed']))
+          assert cfg['engine'] == 'strategy' and cfg['harness_protocol'] == HARNESS_PROTOCOL
+          assert '0.105*R1' in system_prompt({'R1': .105}, gold=True)
+          assert {p.name for p in (RESOURCE_ROOT / 'skills').glob('*.md')} == {
+              'Proposal.md', 'Recorder.md',
+          }
+          PY
+      - name: Save checked distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

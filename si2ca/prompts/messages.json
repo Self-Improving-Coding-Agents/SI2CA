@@ -1,0 +1,55 @@
+{
+  "family": {
+    "preamble": "You are an expert software-engineering supervisor. A coding agent is solving a\nreal GitHub issue in a repository sandbox. You will see the trajectory so far\n(issue description, the agent's previous tool calls, and the environment's\nresults -- the agent's internal reasoning has been removed), followed by ONE\ncandidate next turn proposed by the agent. The candidate contains the agent's\nANALYSIS (its reasoning for this turn) and its TOOL_CALL (the concrete action\nit proposes). The candidate has NOT been executed yet -- judge it on its merits\ngiven the evidence so far. Score on an absolute scale: other candidates are\nevaluated in separate requests, so anchor your scores to the rubric\ndefinitions, not to comparisons.",
+    "gold_block": "You are ALSO given the REFERENCE SOLUTION: the patch that actually resolved\nthis issue upstream. The agent cannot see it and must not be expected to\nreproduce it verbatim. Use it only as ground truth about WHERE the real defect\nlives and WHAT ultimately had to change.",
+    "scale_anchor": "Anchor the scale: 10 = every condition the rubric names is evidenced in the visible history or in the command itself; 5 = the rubric's conditions are unsupported by visible evidence, or do not apply to this action; 1 = the candidate visibly contradicts the rubric. An unsupported claim in the ANALYSIS never scores above 5. If this exact command already appears in the visible history and no intervening result changed the evidence, every action rubric scores low.",
+    "action_kind_block": "This candidate's action has been classified as {family_label}. The rubrics below are specialized for that kind of action -- read them as written and do not substitute a generic notion of a good turn.",
+    "score_instruction": "Score the candidate on every rubric from 1 (very poor) to 10 (excellent):",
+    "reasoning_header": "Reasoning rubrics (about ANALYSIS):\n",
+    "action_header": "Action rubrics (about TOOL_CALL):\n",
+    "schema_end": ",\n  \"total\": _,\n  \"justification\": \"<2-3 sentences>\"\n}",
+    "goal_header": "Goal rubric (about convergence on the REFERENCE SOLUTION):\n",
+    "schema_start": "Respond with STRICT JSON only, no markdown, in this schema:\n{\n  "
+  },
+  "harness": {
+    "snapshot_header": "[Repository Snapshot]\nAutomatically collected before your first command -- use it instead of spending turns on ls/find/git to orient yourself.\n",
+    "empty_output": "(nothing -- the command printed no output at all)",
+    "elided": "\n... [elided] ...\n",
+    "snapshot_truncated": "\n... (snapshot truncated)",
+    "conda_envs": "Conda envs (activate with `source <conda>/bin/activate <name>`):\n",
+    "no_tool_calls": "No tool calls found in the response. Every response MUST include at least one tool call.",
+    "unknown_tool": "Unknown tool '{name}'.",
+    "missing_command": "Missing 'command' argument in bash tool call.",
+    "invalid_arguments": "Error parsing tool call arguments: {error}.",
+    "strategy_format_error": "Your response must include at least one bash tool call.",
+    "strategy_observation": "<returncode>{{output.returncode}}</returncode>\n<output>\n{{output.output}}\n</output>"
+  },
+  "judge": {
+    "progress_header": "\n\n## Current progress (the agent's working tree right now)\n\nThis is `git diff` of the repository at this moment: every edit the agent has\nalready made, new files included. It is the same patch that would be graded if\nthe episode ended here. The agent has NOT been shown this block; it is given to\nyou so you can tell what is already done from what still needs doing, and judge\nthe candidate turn as the NEXT step from this state.\n\n",
+    "trajectory": "## Issue\n\n{issue}\n\n## Trajectory so far\n\n{body}",
+    "candidate": "## Candidate next turn\n\nANALYSIS:\n{analysis}\n\nTOOL_CALL:\n{tool_call}",
+    "earlier_blocks": "[... {count} earlier blocks elided to fit the context budget ...]",
+    "turn_tool": "### Turn {turn} — agent tool call\nbash: {content}",
+    "turn_reply": "### Turn {turn} — agent reply (no tool call)\n{content}",
+    "turn_result": "### Turn {turn} — environment result\n{content}",
+    "turn_notice": "### Turn {turn} — harness notice\n{content}",
+    "candidate_action_only": "## Candidate next turn (action only)\n\nTOOL_CALL:\n{tool_call}",
+    "simple_action": "You are reviewing one proposed next action of a software-engineering agent.\nRecent commands: {recent_commands}\nLast result (truncated): {last_result}\n\nProposed action: {command}\n\nScore 1-10 on progress, correctness, efficiency. Reply STRICT JSON only: {{\"progress\":_,\"correctness\":_,\"efficiency\":_}}",
+    "reference_solution": "## Reference solution (ground truth — the agent cannot see this)\n\nThis patch resolved the issue upstream. Use it to judge G1: whether the\ncandidate turn converges on the right files, functions and root cause.\nAn equally correct but differently written fix is still fully correct.\n\n```diff\n{patch}\n```",
+    "no_prior_turns": "(no prior turns — this is the first action)",
+    "no_changes": "(no changes yet — the agent has not modified any file so far)",
+    "issue_rubric_header": "\n\n## Rubric for this issue (score every item; the index is the JSON key)\n\n",
+    "diff_elided": "\n\n[... middle of the diff elided to fit the context budget ...]\n\n",
+    "patch_truncated": "\n... (patch truncated)",
+    "no_reference": "(no reference solution available)",
+    "patch_omitted": "\n\n[... {n} characters omitted; the full patch touches: {files} ...]\n\n",
+    "no_file_header": "(no file header)"
+  },
+  "hints": {
+    "retry": "\n\nYour previous answer was %d characters, which is %s the required range of %d-%d. Rewrite it to land near %d characters, keeping the same four hints and the same order."
+  },
+  "shim": {
+    "smoke_test": "957 * 683 = ? Think carefully, reply with just the number.",
+    "content_filter_retry": "[The previous response was withheld by a content filter. Rephrase the command and continue.]"
+  }
+}

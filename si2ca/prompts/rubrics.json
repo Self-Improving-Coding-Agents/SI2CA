@@ -1,0 +1,285 @@
+{
+  "_about": {
+    "purpose": "Six action-family self-guide rubric sets. R1-R3 assess ANALYSIS and A1-A4 assess TOOL_CALL, retaining the generic keys so parsing, weighting, and sampling interfaces stay unchanged. Families change only definitions and within-family weights. G1 retains the oracle definition across all families.",
+    "derived_from": "Historical action-taxonomy and per-type-rubric report dated 2026-08-27 (not bundled), based on 3,075 trajectories and 240,277 turns from the Search-Code-Agent-Self-Improvement campaign.",
+    "classifier": "examples/coding_agent_rl/tool_rubrics/classify_actions_v2.py",
+    "weights_note": "Each family retains a 0.40 reasoning-group total and 0.60 action-group total, reallocating weights within groups toward observed failure modes. With scaffold SJ (gold_in_judge), scale the seven items to 0.70 and assign 0.30 to G1.",
+    "measured_2026_08_28": {
+      "same_family_pair_rate": 0.706,
+      "note": "After moving read-only git to family A, 70.6% of candidate pairs in k>=2 turns shared a family and 29.4% crossed families. Cross-family scores may use different scales; see mixed_family_policy. Family-specific rubrics apply to about 68.5% of turns under the default policy.",
+      "judge_prompt_tokens": {
+        "_how": "Measured usage.prompt_tokens on a Qwen3.5-122B-A10B endpoint with max_tokens=1, including only the system prompt and excluding trajectory history.",
+        "generic": 658,
+        "A": 923,
+        "B": 859,
+        "C": 866,
+        "D": 923,
+        "E": 922,
+        "F": 880,
+        "_cost": "The six-family mean is 896 tokens, 238 more than generic per call. Version 2 is slightly shorter than version 1 (908 tokens) despite adding absolute-score anchors. With k=2 and SCORE_SAMPLES=3, six judge calls add about 1,430 prompt tokens per turn. Trajectory history dominates the full prompt, so the relative increase in total prompt size is much smaller."
+      }
+    },
+    "revision": {
+      "date": "2026-08-28",
+      "note": "Version 2, revised after review by gpt-5.6-sol (--effort max, 24.2k reasoning tokens). Changes: (1) replace post-execution-only criteria with properties observable in commands and history; (2) remove empirically uninformative rewards for immediate verification, pre-edit reproduction, and blanket penalties for authored tests; (3) correct two technical errors: pipefail plus head can still cause SIGPIPE, and plain git diff after git add omits staged changes; (4) move read-only git from E to A; (5) add absolute-score anchors and repeated-command floors to family prompts, leaving generic unchanged as the control.",
+      "reviewer_deletions": [
+        "A/R1 penalties for issue-mentioned paths, which rewarded unnecessary exploration",
+        "A/R2 demands for ever-narrower searches; widening after an empty result can be reasonable",
+        "A/A4 treating empty results as failures before observing them; no match can be useful evidence",
+        "B/R3, B/A3, and F/A3 rewards for verification proximity, which were empirically neutral",
+        "C/R2 and F/R1 requirements to reproduce failure before editing, contrary to the observed association",
+        "C/A3, F/R2, and F/A2 blanket penalties for authored tests; regression tests in existing test directories are legitimate",
+        "D/R1 output-prediction rewards, which favored confident guesses over discriminating experiments",
+        "Any rule treating pipefail plus head as safe",
+        "E/A4 generic read-before-write rewards, which rewarded spending extra turns"
+      ]
+    }
+  },
+  "families": {
+    "A": {
+      "name": "Locate & understand",
+      "name_en": "Locate & understand",
+      "categories": [
+        "read",
+        "search",
+        "locate",
+        "vcs:readonly"
+      ],
+      "turn_share": 0.5464,
+      "what_it_is": "Read files, search content, locate paths, and inspect git without mutation (diff/status/log/show). Gather information without changing repository state.",
+      "key_measurements": [
+        "locate/find has a 46.4% empty-output rate; nearly half of find calls locate nothing",
+        "search/repo_wide has 0% empty output but 16.9% nonzero exit status; no match is represented by status rather than empty output",
+        "Unsolved trajectories contain more reads (28.5% vs 24.4%) and more verbatim repeated commands (13.5% vs 10.5%)",
+        "Read-only git accounts for 73% of VCS turns (8,291 turns); family E mutation criteria do not apply and can collapse to constant scores"
+      ],
+      "weights": {
+        "R1": 0.15,
+        "R2": 0.15,
+        "R3": 0.1,
+        "A1": 0.15,
+        "A2": 0.15,
+        "A3": 0.15,
+        "A4": 0.15
+      },
+      "rubrics": {
+        "R1": "R1 Evidence-linked target: each path, symbol, or range is quoted from the issue or from visible history, or is explicitly treated as an unverified guess and located before reading. Unexplained repository-name inference scores low.",
+        "R2": "R2 Decision question: the analysis names one unresolved fact and maps match, no-match, and command error to different next steps. Broad curiosity, or a lookup whose outcomes change nothing, scores low.",
+        "R3": "R3 Search progression: after consecutive lookup turns, the analysis names the new fact from the last result and why one remaining lookup is necessary. If the target code is already visible, another widening search scores low.",
+        "A1": "A1 Bounded query shape: the command names a repository subpath or file-type filter and emits filenames plus line numbers; reads use an explicit range. Repo-root scans or whole-file dumps need visible evidence that narrower coordinates are unavailable.",
+        "A2": "A2 Right instrument for what is known: file and symbol known -> read or grep that file; symbol known but file unknown -> a scoped content search; path unknown -> a filesystem search. Using a repo-wide search when the file is already known, or opening a file whose path is still a guess, scores low.",
+        "A3": "A3 Non-redundancy after a null result: this exact file-and-range, or this exact pattern, has not already been run in this trajectory. If a comparable lookup just came back empty or unmatched, this one must change something real -- the pattern, the root, the tool -- rather than retry the same shape.",
+        "A4": "A4 Null and error observability: content searches preserve the 0/1/>1 exit status and stderr; filesystem searches label zero hits explicitly; reads do not suppress missing-file or empty-range evidence. `|| true` or truncation must not erase those distinctions."
+      }
+    },
+    "B": {
+      "name": "Modify code",
+      "name_en": "Modify code",
+      "categories": [
+        "edit",
+        "overwrite"
+      ],
+      "turn_share": 0.0472,
+      "what_it_is": "Targeted edits to existing files (sed -i, patches, or scripted rewrites) and whole-file overwrites using heredocs.",
+      "key_measurements": [
+        "Whole-file overwrites have a 14.0% nonzero-exit rate versus 4.1% for targeted edits, a 3.4x difference",
+        "The recorded empty-output rate is 0%; successful sed -i is normally silent, so silence itself is neutral rather than evidence of success or failure",
+        "Immediate post-edit verification occurs in about 14% of both solved and unsolved groups (within three steps: 37.5% vs 36.5%); it is not a scoring bonus"
+      ],
+      "weights": {
+        "R1": 0.15,
+        "R2": 0.15,
+        "R3": 0.1,
+        "A1": 0.25,
+        "A2": 0.2,
+        "A3": 0.1,
+        "A4": 0.05
+      },
+      "rubrics": {
+        "R1": "R1 Read-backed site: the target file, symbol, and edit anchor all appear in source already read in visible history. Issue-only or guessed locations must be read before mutation; persuasive causal prose earns no substitute credit.",
+        "R2": "R2 Contract delta and reference evidence: the analysis states the exact old and new behavior and cites visible callers, interfaces, or schemas that constrain it. 'No other callers' without a visible search scores low.",
+        "R3": "R3 Authoritative source selected: the analysis cites visible path or config evidence that the target is repository source, not generated, vendored, built, or installed output. Editing a derived copy without its source scores low.",
+        "A1": "A1 Minimality: the edit touches only what the analysis argued must change. A whole-file rewrite is justified only when the change genuinely spans the file; rewriting a file to change one line scores near the bottom, and rewriting a file the agent has not fully read scores at the bottom.",
+        "A2": "A2 Guarded target and preservation: the command requires the expected anchor count before writing and changes only that site. A whole-file write is allowed only when the full prior contents are visible and retained.",
+        "A3": "A3 Mutation result is trustworthy: the command preserves the editor's exit status and fails unless the intended delta exists; a trailing diff, read, echo, or cleanup cannot mask a failed or no-op write. Silent output alone is neutral.",
+        "A4": "A4 Write confinement: every write path is the argued repository file; temporary or backup files are outside the patch or removed in the same command, and no unrelated visible change is reverted."
+      }
+    },
+    "C": {
+      "name": "Build a check",
+      "name_en": "Build a check",
+      "categories": [
+        "author_repro",
+        "author_test"
+      ],
+      "turn_share": 0.0896,
+      "what_it_is": "Write reproductions, fixtures, and tests that make the proposed fix verifiable.",
+      "key_measurements": [
+        "author_test has the highest error rate (25.2%) and nonzero-exit rate (18.5%), often from framework, import, or language-version mismatches",
+        "Unquoted heredoc delimiters let the shell expand dollar signs and backticks in the body, causing creation errors",
+        "Pre-edit reproduction was more common in unsolved trajectories (88.3% vs 76.9%), so it is not rewarded"
+      ],
+      "weights": {
+        "R1": 0.08,
+        "R2": 0.16,
+        "R3": 0.16,
+        "A1": 0.15,
+        "A2": 0.25,
+        "A3": 0.1,
+        "A4": 0.1
+      },
+      "rubrics": {
+        "R1": "R1 Artifact necessity grounded: the analysis cites why an existing test or reproduction command cannot express the issue case, based on visible tests or runner behavior. Authoring from convention before inspecting a nearby test scores low.",
+        "R2": "R2 Grounded oracle: the analysis cites an expected value from the issue or from a visible repository contract, and names the assertion or exit condition encoding it. Without an oracle, the artifact is diagnostic, not a test.",
+        "R3": "R3 Execution provenance: the analysis cites visible config, an existing test, or a prior successful run for the interpreter, runner, imports, and language level. A standalone reproduction needs no framework but must show how repository code loads.",
+        "A1": "A1 Exercises the real defect path: the artifact invokes repository implementation, not copied logic, and encodes the issue input and expected result in an assertion or exit condition. Mocks do not replace the behavior under test.",
+        "A2": "A2 Evidence-backed APIs: runner, imports, fixtures, APIs, and syntax are evidenced by visible config, existing tests, or prior successful commands. No guessed framework API, undeclared package, network access, or unsupported language feature.",
+        "A3": "A3 Deliberate placement: durable regression tests follow the existing test layout and naming; diagnostic artifacts use a scratch path outside the repository or are removed in the same command. Repo-root temporary files score low.",
+        "A4": "A4 Shell-safe creation: quoted heredocs protect `$`, backticks, and backslashes; the command neither appends to nor overwrites an unexpected existing file, and a partial write cannot masquerade as success."
+      }
+    },
+    "D": {
+      "name": "Execute & verify",
+      "name_en": "Execute & verify",
+      "categories": [
+        "run_code",
+        "run_test",
+        "verify"
+      ],
+      "turn_share": 0.2108,
+      "what_it_is": "Run code, tests, and syntax checks to collect evidence from the environment.",
+      "key_measurements": [
+        "Of 13,264 test runs, 72.6% piped output through head/tail; none used pipefail or PIPESTATUS",
+        "Single-test nonzero-exit rates were 12.8% without pipes and 3.9% with pipes (3.3x difference), with head masking runner status",
+        "run_test accounts for 7.0% of turns in solved trajectories versus 4.5% in unsolved trajectories",
+        "run_code/py_inline has a 24.0% error rate, often caused by incorrect import or environment assumptions"
+      ],
+      "weights": {
+        "R1": 0.15,
+        "R2": 0.15,
+        "R3": 0.1,
+        "A1": 0.3,
+        "A2": 0.13,
+        "A3": 0.12,
+        "A4": 0.05
+      },
+      "rubrics": {
+        "R1": "R1 Decision rule before execution: the analysis maps observable outcomes -- status, a named assertion or error, or a value -- to different next steps. It need not predict which occurs; 'see what happens' without branches scores low.",
+        "R2": "R2 Prior-evidence integrity: every earlier result used to justify this run matches visible output and a trustworthy status. Truncated output is called partial; a pipeline's final zero is not attributed to its runner. Unsupported recollection scores low.",
+        "R3": "R3 Claim bounded by command: the intended conclusion is no broader than the named selector or check. A syntax check, one reproduction, targeted tests, and a suite license different claims; any remaining regression gap is named.",
+        "A1": "A1 Runner status is trustworthy: the status survives redirection, pipelines, and post-processing. Prefer capture-to-file; `cmd | head` scores low even with `pipefail`, because `head` can close the pipe and turn a passing run into a SIGPIPE failure. `tail` or `tee` requires `pipefail` or an immediate `${PIPESTATUS[0]}`.",
+        "A2": "A2 Conditional failure detail: output is captured before trimming; success may show only a summary, while failure prints the failing assertion, the relevant traceback, and the summary. Unconditional `head` or `tail` that discards one of those regions scores low.",
+        "A3": "A3 Selection is traceable: each test selector or path names a changed symbol, a visible failure, or a relevant test file. Full-suite runs require a stated regression purpose; self-authored checks never substitute for repository tests.",
+        "A4": "A4 Repository-code provenance: the command runs from the repository root, or uses a project-supported path or install mode visible in history. It does not invoke site-packages, dist, stale binaries, or cached outputs without resolving their source."
+      }
+    },
+    "E": {
+      "name": "Environment & version control",
+      "name_en": "Environment & version control",
+      "categories": [
+        "env",
+        "vcs:mutating",
+        "sync_env"
+      ],
+      "turn_share": 0.0432,
+      "what_it_is": "Install packages, build, access networks, mutate git state (checkout/stash/reset/clean), or copy changes into the runtime environment.",
+      "key_measurements": [
+        "env/pkg_install has a 64.3% error rate and 50.5% nonzero-exit rate; installs usually fail in network-restricted sandboxes",
+        "vcs/stash and vcs/checkout are the most error-prone VCS actions in this family, at 47.4% and 31.1%",
+        "Patch-based grading does not include changes made only to site-packages"
+      ],
+      "weights": {
+        "R1": 0.15,
+        "R2": 0.15,
+        "R3": 0.1,
+        "A1": 0.2,
+        "A2": 0.2,
+        "A3": 0.1,
+        "A4": 0.1
+      },
+      "rubrics": {
+        "R1": "R1 Visible blocker: the environment or working-tree mutation is justified by a concrete prior missing-tool, import, version, build, or working-tree condition. Install, fetch, or rebuild without visible need scores low; network-dependent mutation scores at the bottom.",
+        "R2": "R2 Blast radius understood: the analysis names what this operation changes -- which package gets overwritten, which build outputs get replaced, which working-tree modifications get discarded. For any operation that can revert files, it must name the edits made earlier in this trajectory and say whether they are inside the affected range.",
+        "R3": "R3 Retry discipline: a previously failed command shape must change the evidenced cause -- source, scope, target, or strategy. Verbatim retries and cosmetic flag changes score at the bottom; promising a future fallback earns no credit.",
+        "A1": "A1 Own work is preserved: working-tree mutations are path-scoped and preserve every visible agent edit and untracked file. A bare `stash`, a whole-tree `checkout`, `restore`, `reset`, or `clean`, and any safety that depends on a future `pop`, score at the bottom.",
+        "A2": "A2 Offline and bounded: install or fetch uses only visible repository-local or cached artifacts and forbids a network fallback; builds name a narrow target; dependency directories are not edited merely to make tests load the fix.",
+        "A3": "A3 Authoritative target: writes go to repository source, or to reproducible outputs derived from it; an installed or runtime copy is never the only modified copy. Any sync names both the repository source and the runtime destination.",
+        "A4": "A4 Mutation status survives: a follow-up status, version, listing, or cleanup command uses `&&` or otherwise preserves the primary status; no trailing `echo`, copy, or cleanup can mask a failed install, build, or VCS operation."
+      }
+    },
+    "F": {
+      "name": "Finalize & submit",
+      "name_en": "Finalize & submit",
+      "categories": [
+        "finalize",
+        "submit"
+      ],
+      "turn_share": 0.0221,
+      "what_it_is": "Export the final patch and submit. Mean normalized positions of 0.94-1.00 place this family at the end of trajectories.",
+      "key_measurements": [
+        "Mean normalized position is 0.94 for finalize/patch_export and 1.00 for submit",
+        "Plain git diff omits untracked files, silently losing fixes implemented in new files",
+        "Reproduction scripts and authored tests inside the repository can enter the exported patch"
+      ],
+      "weights": {
+        "R1": 0.18,
+        "R2": 0.12,
+        "R3": 0.1,
+        "A1": 0.25,
+        "A2": 0.18,
+        "A3": 0.07,
+        "A4": 0.1
+      },
+      "rubrics": {
+        "R1": "R1 Stopping evidence: the analysis cites a recent trustworthy run covering the changed behavior, and its observed verdict; no pre-edit failure is required. A piped or masked status, or a weaker check, cannot support a broader completion claim.",
+        "R2": "R2 Issue obligations closed: the analysis maps each distinct issue requirement to a changed symbol or file and to a visible verification result. Any requirement lacking either remains open; merely enumerating patch files earns no credit.",
+        "R3": "R3 Regression boundary grounded: the analysis cites visible callers or consumers of each shared changed symbol, and identifies the trustworthy run covering them. Unsearched or uncovered consumers are named rather than declared safe.",
+        "A1": "A1 Complete export: the command exports against `HEAD` and includes staged, unstaged, and required new files after inventorying untracked paths. A plain `git diff`, or staging followed by a plain `git diff`, scores at the bottom when states are omitted.",
+        "A2": "A2 Grounded path set: the patch includes only inventoried, justified paths. Durable tests in the existing layout are allowed; scratch reproductions, generated outputs, backups, runtime copies, and unrelated pre-existing edits are excluded.",
+        "A3": "A3 Lossless transport: patch bytes are not piped through `head`, `tail`, command substitution, or ad-hoc text filters; the export format preserves modes, renames, binary data, and final newlines.",
+        "A4": "A4 Literal harness contract: the command emits the exact completion marker specified in visible instructions, once, on the required stream, and only after a visible non-empty patch inventory. No guessed marker, prose wrapper, or status-masking suffix."
+      }
+    }
+  },
+  "generic": {
+    "name": "Generic fallback",
+    "name_en": "Generic fallback",
+    "categories": [
+      "shell_misc",
+      "malformed"
+    ],
+    "turn_share": 0.0408,
+    "what_it_is": "Shell actions outside the six families, such as cd/mkdir/rm/cp/chmod, plus fallback scoring for mixed-family comparisons. Retains the seven reference rubrics unchanged.",
+    "weights": {
+      "R1": 0.15,
+      "R2": 0.15,
+      "R3": 0.1,
+      "A1": 0.15,
+      "A2": 0.2,
+      "A3": 0.15,
+      "A4": 0.1
+    },
+    "rubrics": {
+      "R1": "R1 Groundedness: the analysis is consistent with evidence in the trajectory (files actually read, real error messages, real test output); it does not hallucinate files, APIs, or results.",
+      "R2": "R2 Diagnostic insight: the reasoning meaningfully narrows down the root cause or reduces uncertainty; it forms or updates concrete hypotheses rather than vaguely restating the problem.",
+      "R3": "R3 Plan coherence: the stated plan follows logically from the analysis and advances the overall task; it is not circular or redundant with prior turns.",
+      "A1": "A1 Analysis-action alignment: the tool call actually implements what the analysis proposes.",
+      "A2": "A2 Correctness & specificity: tool name, arguments, file paths, and commands are well-formed and plausibly valid for this repository; edits are precise and minimal rather than broad rewrites.",
+      "A3": "A3 Expected progress / information gain: executing this action is likely to move the trajectory closer to a correct fix, or to yield high-value new information; it does not repeat actions that already failed.",
+      "A4": "A4 Efficiency & safety: avoids destructive, wasteful, or unnecessarily broad operations (mass rewrites, irrelevant exploration, redundant re-reads)."
+    }
+  },
+  "goal_rubric": {
+    "G1": "G1 Goal alignment: does this turn move the trajectory toward the reference solution -- the files, functions, and root cause it touches? Investigating the right module, reproducing the right failure, or editing the right code scores high; wandering into unrelated code, or editing the wrong place, scores low.\n  Judge CONVERGENCE, not textual similarity. A different but equally correct implementation of the same fix scores HIGH. An action that merely quotes or restates the reference without doing the work scores LOW. Early exploratory turns that legitimately narrow toward the right area score in the middle -- do not punish a turn for not being the final edit.",
+    "weight_when_gold": 0.3,
+    "_note": "G1 retains the historical branch_select.scoring._ORACLE_SYSTEM_TEMPLATE definition for every family. With gold enabled, the seven intrinsic weights are scaled to 0.70."
+  },
+  "mixed_family_policy": {
+    "default": "generic",
+    "options": {
+      "generic": "Use the same seven generic rubrics for all candidates when their families differ. In the initial measurements, family-specific rubrics covered 71.7% of turns and the 28.3% mixed-family turns retained generic behavior. Every comparison uses one scale.",
+      "per_candidate": "Score each candidate with its own family rubric, covering 100% of turns. Cross-family 1-10 scales are not calibrated against one another, so their argmax is difficult to interpret.",
+      "majority": "Use the majority family among k candidates, falling back to generic on a tie. Coverage exceeds generic and each comparison shares one scale, but minority candidates may receive an unsuitable rubric."
+    }
+  }
+}

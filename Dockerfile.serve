@@ -1,0 +1,18 @@
+# Use the exact CUDA/ROCm SGLang image compatible with the target hardware.
+ARG SGLANG_IMAGE
+FROM docker:27-cli AS docker-cli
+FROM ${SGLANG_IMAGE}
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+WORKDIR /opt/si2ca
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE ./
+COPY si2ca ./si2ca
+COPY configs ./configs
+COPY skills ./skills
+COPY data/*.jsonl data/*.csv data/assets.tar.gz ./data/
+COPY scripts/install_serving_client.py ./scripts/install_serving_client.py
+RUN python scripts/install_serving_client.py \
+    && command -v docker
+ENV SI2CA_CACHE_DIR=/cache/si2ca PYTHONUNBUFFERED=1
+WORKDIR /work
+ENTRYPOINT ["si2ca"]
+CMD ["--help"]
